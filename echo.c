@@ -97,7 +97,7 @@ int flush(struct inode *inodep, fl_owner_t id)
 *Both read and write should return the number of bytes transferred, if the operation is successful. Otherwise, if no byte is successfully transferred, then they should return a negative number. However, if there is an error after successfully transferring some bytes, both should return the number of bytes transferred, and an error code in the following call of the function. This requires the DD to recall the occurrence of an error from a call to the next.
 */
 
-// a read will return the number of characters written by the DD on the device since it was last loaded
+// read will return the number of characters written by the DD on the device since it was last loaded
 ssize_t read(struct file *filep, char __user *buff, size_t count, loff_t *offp)
 {
 	copy_to_user(buff, filep, (int)count);
