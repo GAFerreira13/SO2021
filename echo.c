@@ -65,51 +65,6 @@ struct resource *echo_res;
 int port_busy = 0;
 //struct inode *echo_inode;
 
-int setup_serial(int COM_port, int baud, unsigned char misc)
-{
-	word divisor;
-
-	if (port_busy)
-		return (port_busy);
-
-	port_busy = COM_port;
-
-	write_uart(COM_port, REG_IER, 0);
-	write_uart(COM_port, REG_LCR, (int)DLR_ON);
-	divisor = 0x1c200 / baud;
-	//outpw(COM_port, divisor);	//original
-	outw(divisor, COM_port); //como diz no guiao
-
-	write_uart(COM_port, REG_LCR, (int)misc);
-	return 1;
-}
-
-void write_uart(int COM_port, int reg, int data)
-{
-
-	//outp((COM_port + reg), data);		//original
-	outb(data, (COM_port + reg)); //como diz no guiao
-}
-
-int read_uart(int COM_port, int reg)
-{
-
-	return (_inp(COM_port + reg));
-}
-
-void serial_write(unsigned char ch)
-{
-	while (1)
-	{
-		if (!((unsigned char)Read_UART(port_busy, REG_LSR) & 0x20))
-		{
-			schedule();
-		}
-		else break;
-	}
-
-	write_uart(port_busy, REG_THR, (int)ch);
-}
 
 static int hello_init(void)
 {
@@ -143,11 +98,6 @@ static int hello_init(void)
 	return 0;
 }
 
-/* The first version of the serp device driver is very simple. In its initialization function it should:
-
-    initialize the UART with the following communication parameters: 8-bit chars, 2 stop bits, parity even, and 1200 bps. Because, we will not use interrupts, make sure that the UART is configured not to generate interrupts
-    send one character via the UART
-*/
 
 static void hello_exit(void)
 {
@@ -177,9 +127,14 @@ int open(struct inode *inodep, struct file *filep)
 int release(struct inode *inodep, struct file *filep)
 {
 	printk(KERN_ALERT "int release\n");
+	kfree(echo_cdev);
+	kfree(echo_file);
+	kfree(echo_res);
+
 	return 0;
 }
 
+//para executar em todos os close()
 /*
 int flush(struct inode *inodep, fl_owner_t id)
 {
@@ -194,9 +149,14 @@ int flush(struct inode *inodep, fl_owner_t id)
 // read will return the number of characters written by the DD on the device since it was last loaded
 ssize_t read(struct file *filep, char __user *buff, size_t count, loff_t *offp)
 {
-	copy_to_user(buff, filep, (int)count);
+	unsigned long a;
+	a = copy_to_user(buff, filep, (int)count);
 	printk(KERN_ALERT "%s\n", (char *)buff);
-	return count;
+	if (a > 0)
+	{
+		return (ssize_t) a;
+	}
+	else return -1;
 }
 
 //a write to an echo device will make it print whatever an application writes to it on the console
@@ -206,8 +166,71 @@ ssize_t write(struct file *filep, const char __user *buff, size_t count, loff_t 
 	copy_from_user(temp, buff, (unsigned long)count);
 	temp[count + 1] = '0';
 	copy_to_user(buff, temp, (unsigned long)count + 1);
-	printk(KERN_ALERT "%s\n", (char *)buff);
+	printk(KERN_ALERT "%s\n", temp);
 	kfree(temp);
+}
+
+int setup_serial(int COM_port, int baud, unsigned char misc)
+{
+	word divisor;
+
+	if (port_busy)
+		return (port_busy);
+
+	port_busy = COM_port;
+
+	write_uart(COM_port, REG_IER, 0);
+	write_uart(COM_port, REG_LCR, (int)DLR_ON);
+	divisor = 0x1c200 / baud;
+	//outpw(COM_port, divisor);	//original
+	outw(divisor, COM_port); //como diz no guiao
+
+	write_uart(COM_port, REG_LCR, (int)misc);
+	return 1;
+}
+
+void write_uart(int COM_port, int reg, int data)
+{
+
+	//outp((COM_port + reg), data);		//original
+	outb(data, (COM_port + reg)); //como diz no guiao
+}
+
+int read_uart(int COM_port, int reg)
+{
+	return (inb(COM_port + reg));
+}
+
+void serial_write(unsigned char ch)
+{
+	while (1)
+	{
+		if (!((unsigned char)read_uart(port_busy, REG_LSR) & 0x20))
+		{
+			schedule();
+		}
+		else break;
+	}
+
+	write_uart(port_busy, REG_THR, (int)ch);
+}
+
+int serial_read (void) {
+	unsigned char a, b;
+	b = read_uart(port_busy, REG_LSR);
+	if (b & (UART_LSR_FE | UART_LSR_OE | UART_LSR_PE))
+	{
+		return -EIO;
+	}
+	else if (b & UART_LSR_DR)
+	{
+		a = read_uart(port_busy, REG_RHR);
+		if (a != 0) return 1;
+		else return -EIO;
+		
+	}
+	else return -EAGAIN;
+
 }
 
 module_init(hello_init);
