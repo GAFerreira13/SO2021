@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Linux",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/lib/modules/5.11.0-16-generic/",
+                "/usr/src/linux-headers-5.11.0-16/include",
+                "/usr/src/linux-headers-5.11.0-16-generic/arch/x86/include/generated",
+                "/usr/src/linux-headers-5.11.0-16/arch/x86/include",
+                "/usr/src/linux-headers-5.11.0-16-generic/include"
+            ],
+            "defines": [],
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}
