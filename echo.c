@@ -63,41 +63,8 @@ struct file_operations echo_fops;
 struct file *echo_file;
 struct resource *echo_res;
 int port_busy = 0;
+int RW_ERR = 0;
 //struct inode *echo_inode;
-
-
-static int hello_init(void)
-{
-	int a, b = 0;
-
-	printk(KERN_ALERT "Hello, world\n");
-
-	a = alloc_chrdev_region(&echo_number, 0, 1, "echo");
-	if (a != 0)
-	{
-		printk(KERN_ALERT "Erro a criar major device number");
-	}
-
-	printk(KERN_ALERT "major: %d\n", MAJOR(echo_number));
-
-	echo_cdev = cdev_alloc();
-	echo_cdev->ops = &echo_fops;
-	echo_cdev->owner = THIS_MODULE;
-
-	echo_fops.llseek = &no_llseek;
-	echo_fops.read = &read;
-	echo_fops.write = &write;
-	echo_fops.open = &open;
-	echo_fops.release = &release;
-
-	b = cdev_add(echo_cdev, echo_number, 1);
-
-	echo_res = request_region(0x3f8, 8, "echo");
-	Setup_Serial(PORT_COM1, 96, BITS_8 | PARITY_EVEN | STOP_TWO);
-
-	return 0;
-}
-
 
 static void hello_exit(void)
 {
@@ -150,44 +117,53 @@ int flush(struct inode *inodep, fl_owner_t id)
 ssize_t read(struct file *filep, char __user *buff, size_t count, loff_t *offp)
 {
 	unsigned long a;
-	a = copy_to_user(buff, filep, (int)count);
-	printk(KERN_ALERT "%s\n", (char *)buff);
-	if (a > 0)
+	if (RW_ERR == 0)
 	{
-		return (ssize_t) a;
+		a = copy_to_user(buff, filep, (int)count);
+		printk(KERN_ALERT "%s\n", (char *)buff);
+		if (a != 0)
+		{
+			RW_ERR = 1;
+			return (ssize_t)count - a;
+		}
+		else
+		{
+			RW_ERR = 0;
+			return (ssize_t)count;
+		}
 	}
-	else return -1;
-}
+	else {
+		printk(KERN_ALERT "Houve um erro no ssize_t read previo\n");
+		return -1;
+} }
 
 //a write to an echo device will make it print whatever an application writes to it on the console
 ssize_t write(struct file *filep, const char __user *buff, size_t count, loff_t *offp)
 {
-	char *temp = kmalloc(count + 1, GFP_KERNEL);
-	copy_from_user(temp, buff, (unsigned long)count);
-	temp[count + 1] = '0';
-	copy_to_user(buff, temp, (unsigned long)count + 1);
-	printk(KERN_ALERT "%s\n", temp);
-	kfree(temp);
-}
-
-int setup_serial(int COM_port, int baud, unsigned char misc)
-{
-	word divisor;
-
-	if (port_busy)
-		return (port_busy);
-
-	port_busy = COM_port;
-
-	write_uart(COM_port, REG_IER, 0);
-	write_uart(COM_port, REG_LCR, (int)DLR_ON);
-	divisor = 0x1c200 / baud;
-	//outpw(COM_port, divisor);	//original
-	outw(divisor, COM_port); //como diz no guiao
-
-	write_uart(COM_port, REG_LCR, (int)misc);
-	return 1;
-}
+	if (RW_ERR == 0)
+	{
+		int a, b = 0;
+		char *temp = kmalloc(count + 1, GFP_KERNEL);
+		a = copy_from_user(temp, buff, (unsigned long)count);
+		temp[count + 1] = '0';
+		b = copy_to_user(temp, buff, (unsigned long)count + 1);
+		printk(KERN_ALERT "%s\n", temp);
+		kfree(temp);
+		if (a != 0 || b != 0)
+		{
+			RW_ERR = 1;
+			return (ssize_t)count - (a + b);
+		}
+		else
+		{
+			RW_ERR = 0;
+			return (ssize_t)count;
+		}
+	}
+	else {
+		printk(KERN_ALERT "Houve um erro no ssize_t write previo\n");
+		return -1;
+} }
 
 void write_uart(int COM_port, int reg, int data)
 {
@@ -209,13 +185,15 @@ void serial_write(unsigned char ch)
 		{
 			schedule();
 		}
-		else break;
+		else
+			break;
 	}
 
 	write_uart(port_busy, REG_THR, (int)ch);
 }
 
-int serial_read (void) {
+int serial_read(void)
+{
 	unsigned char a, b;
 	b = read_uart(port_busy, REG_LSR);
 	if (b & (UART_LSR_FE | UART_LSR_OE | UART_LSR_PE))
@@ -225,12 +203,64 @@ int serial_read (void) {
 	else if (b & UART_LSR_DR)
 	{
 		a = read_uart(port_busy, REG_RHR);
-		if (a != 0) return 1;
-		else return -EIO;
-		
+		if (a != 0)
+			return 1;
+		else
+			return -EIO;
 	}
-	else return -EAGAIN;
+	else
+		return -EAGAIN;
+}
 
+int setup_serial(int COM_port, int baud, unsigned char misc)
+{
+	word divisor;
+
+	if (port_busy)
+		return (port_busy);
+
+	port_busy = COM_port;
+
+	write_uart(COM_port, REG_IER, 0);
+	write_uart(COM_port, REG_LCR, (int)DLR_ON);
+	divisor = 0x1c200 / baud;
+	//outpw(COM_port, divisor);	//original
+	outw(divisor, COM_port); //como diz no guiao
+
+	write_uart(COM_port, REG_LCR, (int)misc);
+	return 1;
+}
+
+static int hello_init(void)
+{
+	int a, b = 0;
+
+	printk(KERN_ALERT "Hello, world\n");
+
+	a = alloc_chrdev_region(&echo_number, 0, 1, "echo");
+	if (a != 0)
+	{
+		printk(KERN_ALERT "Erro a criar major device number");
+	}
+
+	printk(KERN_ALERT "major: %d\n", MAJOR(echo_number));
+
+	echo_cdev = cdev_alloc();
+	echo_cdev->ops = &echo_fops;
+	echo_cdev->owner = THIS_MODULE;
+
+	echo_fops.llseek = &no_llseek;
+	echo_fops.read = &read;
+	echo_fops.write = &write;
+	echo_fops.open = &open;
+	echo_fops.release = &release;
+
+	b = cdev_add(echo_cdev, echo_number, 1);
+
+	echo_res = request_region(0x3f8, 8, "echo");
+	setup_serial(PORT_COM1, 96, BITS_8 | PARITY_EVEN | STOP_TWO);
+
+	return 0;
 }
 
 module_init(hello_init);

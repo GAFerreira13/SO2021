@@ -1,37 +1,52 @@
 #include <linux/module.h>
+#define INCLUDE_VERMAGIC
+#include <linux/build-salt.h>
 #include <linux/vermagic.h>
 #include <linux/compiler.h>
 
-MODULE_INFO(vermagic, VERMAGIC_STRING);
+BUILD_SALT;
 
-struct module __this_module
-__attribute__((section(".gnu.linkonce.this_module"))) = {
- .name = KBUILD_MODNAME,
- .init = init_module,
+MODULE_INFO(vermagic, VERMAGIC_STRING);
+MODULE_INFO(name, KBUILD_MODNAME);
+
+__visible struct module __this_module
+__section(".gnu.linkonce.this_module") = {
+	.name = KBUILD_MODNAME,
+	.init = init_module,
 #ifdef CONFIG_MODULE_UNLOAD
- .exit = cleanup_module,
+	.exit = cleanup_module,
 #endif
+	.arch = MODULE_ARCH_INIT,
 };
+
+#ifdef CONFIG_RETPOLINE
+MODULE_INFO(retpoline, "Y");
+#endif
 
 static const struct modversion_info ____versions[]
-__attribute_used__
-__attribute__((section("__versions"))) = {
-	{ 0x8d0ae4f, "struct_module" },
-	{ 0x2323fd40, "nonseekable_open" },
-	{ 0xf2a644fb, "copy_from_user" },
-	{ 0x12da5bb2, "__kmalloc" },
-	{ 0x2da418b5, "copy_to_user" },
-	{ 0x133d4e85, "no_llseek" },
-	{ 0xd85a396a, "cdev_add" },
-	{ 0x2be5747e, "cdev_alloc" },
-	{ 0x29537c9e, "alloc_chrdev_region" },
-	{ 0x4bd6e07e, "cdev_del" },
-	{ 0x7485e15e, "unregister_chrdev_region" },
-	{ 0x1b7d4074, "printk" },
+__used __section("__versions") = {
+	{ 0x4b3f3d8b, "module_layout" },
+	{ 0x85bd1608, "__request_region" },
+	{ 0xa355d690, "cdev_add" },
+	{ 0x62b4951a, "no_llseek" },
+	{ 0xc985a8d2, "cdev_alloc" },
+	{ 0xe3ec2f2b, "alloc_chrdev_region" },
+	{ 0x1000e51, "schedule" },
+	{ 0x1035c7c2, "__release_region" },
+	{ 0xdbdf6c92, "ioport_resource" },
+	{ 0x33a6624d, "cdev_del" },
+	{ 0x6091b333, "unregister_chrdev_region" },
+	{ 0x13c49cc2, "_copy_from_user" },
+	{ 0xeb233a45, "__kmalloc" },
+	{ 0x6b10bee1, "_copy_to_user" },
+	{ 0x88db9f48, "__check_object_size" },
+	{ 0x37a0cba, "kfree" },
+	{ 0x4216963a, "nonseekable_open" },
+	{ 0xc5850110, "printk" },
+	{ 0xbdfb6dbb, "__fentry__" },
 };
 
-static const char __module_depends[]
-__attribute_used__
-__attribute__((section(".modinfo"))) =
-"depends=";
+MODULE_INFO(depends, "");
 
+
+MODULE_INFO(srcversion, "05B252F0B4B74F665AAFE82");
