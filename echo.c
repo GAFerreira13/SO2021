@@ -66,11 +66,11 @@ int port_busy = 0;
 int RW_ERR = 0;
 //struct inode *echo_inode;
 
-static void hello_exit(void)
+static void echo_exit(void)
 {
 	unsigned int a = MAJOR(echo_number);
 
-	unregister_chrdev_region(echo_number, 0);
+	unregister_chrdev_region(echo_number, 1);
 
 	printk(KERN_ALERT "Goodbye, cruel world\n");
 	printk(KERN_ALERT "major: %d\n", a);
@@ -231,7 +231,7 @@ int setup_serial(int COM_port, int baud, unsigned char misc)
 	return 1;
 }
 
-static int hello_init(void)
+static int echo_init(void)
 {
 	int a, b = 0;
 
@@ -263,5 +263,5 @@ static int hello_init(void)
 	return 0;
 }
 
-module_init(hello_init);
-module_exit(hello_exit);
+module_init(echo_init);
+module_exit(echo_exit);
